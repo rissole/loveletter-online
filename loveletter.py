@@ -1,3 +1,5 @@
+import random
+
 import lovelettercards
 
 class LoveLetterGame(object):
@@ -18,6 +20,16 @@ class LoveLetterGame(object):
         self.do_turn()
 
     def init_deck(self):
+        self._deck = []
+        for character, amount in self.config.num_cards_per_character:
+            for _ in xrange(amount):
+                self._deck.append(character())
+        random.shuffle(self._deck)
+
+    def discard_card(self):
+        self._discard_pile.append(self._deck.pop())
+
+    def do_turn(self):
         pass
 
     def add_player(self, player):
