@@ -18,6 +18,10 @@ class LoveLetterCard(object):
     def get_name():
         return "Unknown"
 
+    @staticmethod
+    def get_value():
+        return 0
+
     def __str__(self):
         return type(self).get_name()
 
@@ -35,9 +39,18 @@ class SoldierCard(LoveLetterCard):
     def get_name():
         return "Soldier"
 
+    @staticmethod
+    def get_value():
+        return 1
+
     def command_action(self, player, target, guess):
-        if not player.is_alive() or not target.is_alive():
-            raise LoveLetterInvalidCommand()
+        if not target.is_targetable():
+            if all(not t.is_targetable() for t in player.get_game().get_players_excluding(player)):
+                # you don't need a target if there are no targetable players.
+                pass
+            else:
+                raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable" % str(target))
+
         if type(target.get_hand_first_card()) == guess:
             return self.outcome_hit(player, target)
         else:
@@ -45,7 +58,7 @@ class SoldierCard(LoveLetterCard):
 
     def outcome_hit(self, player, target):
         # broadcast packets
-        target.discard(self)
+        target.lose()
 
     def outcome_whiff(self, player, target, guess):
         # broadcast packets
