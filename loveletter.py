@@ -71,7 +71,7 @@ class LoveLetterGame(object):
 
     def next_turn(self):
         self._current_turn += 1
-        # no cards left? compare step
+        # no cards left? let's do the compare step
         if len(self._deck) == 0:
             winner = max(p in self._players, key=lambda p: p.get_hand_first_card().get_value())
             for p in self.get_live_players_excluding(winner):

@@ -47,7 +47,7 @@ class SoldierCard(LoveLetterCard):
         if not target.is_targetable():
             if all(not t.is_targetable() for t in player.get_game().get_players_excluding(player)):
                 # you don't need a target if there are no targetable players.
-                pass
+                return outcome_no_target(self, player)
             else:
                 raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable" % str(target))
 
@@ -61,6 +61,10 @@ class SoldierCard(LoveLetterCard):
         target.lose()
 
     def outcome_whiff(self, player, target, guess):
+        # broadcast packets
+        pass
+
+    def outcome_no_target(self, player):
         # broadcast packets
         pass
 
