@@ -15,7 +15,11 @@ class LoveLetterGame(object):
         return self._current_turn
 
     def get_turn_player(self):
-        return self._players[self._current_turn % len(self._players)]
+        for i in xrange(len(self.players)):
+            player = self._players[(self._current_turn + i) % len(self._players)]
+            if player.is_alive():
+                return player
+        raise LoveLetterGameException("Unable to get current turn player, all players dead.")
 
     def get_all_players(self):
         return self._players
@@ -37,6 +41,7 @@ class LoveLetterGame(object):
 
         self.init_deck()
         self.burn_deck_card()
+
         for p in players:
             p.reset()
             self.draw_card(p)
@@ -59,13 +64,15 @@ class LoveLetterGame(object):
         self._players.append(player)
 
     def play_card(self, player, card, **command_args):
+        if card.get_owner() != player:
+            raise LoveLetterGameException("Cannot play card %s: Player %s doesn't own card." % (card, player))
         card.command_action(player, **command_args)
         player.discard(card)
         self.next_turn()
 
     def draw_card(self, player):
         if len(self._deck) == 0:
-            raise LoveLetterGameException("%s tried to draw a card but the deck is empty" % str(player))
+            raise LoveLetterGameException("%s tried to draw a card but the deck is empty." % str(player))
         card = self._deck.pop()
         player.draw(card)
 
@@ -89,6 +96,7 @@ class LoveLetterPlayer(object):
         # profile is some unique identifier for this player
         self._profile = profile
         self._game = game
+        self._won_rounds = 0
 
     def reset(self):
         """ Reset player as if starting a new round """
@@ -110,7 +118,7 @@ class LoveLetterPlayer(object):
 
     def discard(self, card, no_action=False):
         if card not in self._hand:
-            raise LoveLetterGameException("Tried to discard card %s, but player %s doesn't have it in hand" % (str(card), str(self)))
+            raise LoveLetterGameException("Tried to discard card %s, but player %s doesn't have it in hand." % (str(card), str(self)))
         self._played_cards.append(card)
         self._hand.remove(card)
         if not no_action:
@@ -124,8 +132,12 @@ class LoveLetterPlayer(object):
         for card in self._hand:
             self.discard(card, no_action=True)
         self._alive = False
+
         # check if all but one dead, and end round if so
-        if len(self.get_game().get_live_players()) == 1:
+        live_players = self.get_game().get_live_players()
+        if len(live_players) == 1:
+            winner = live_players[0]
+            winner.give_win_credit()
             self._game.start_new_round()
 
     def get_profile(self):
@@ -137,6 +149,12 @@ class LoveLetterPlayer(object):
     def is_targetable(self):
         # TODO and not has immune aura
         return self._alive
+
+    def give_win_credit(self):
+        self._won_rounds += 1
+
+    def get_won_rounds(self):
+        return self._won_rounds
 
     def __str__(self):
         return self._profile

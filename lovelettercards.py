@@ -2,9 +2,12 @@ class LoveLetterCard(object):
     """ Abstract card object """
     default_amount = 0
 
+    def __init__(self):
+        # there are advantages to a LoveLetterPlayer.NO_PLAYER constant but I think this is fine.
+        self._owner = None
+
     def draw_action(self, player):
-        """ Actions that occur from drawing the card """
-        pass
+        self._owner = player
 
     def discard_action(self, player):
         """ Actions that occur from discarding the card """
@@ -22,8 +25,8 @@ class LoveLetterCard(object):
     def get_value():
         return 0
 
-    def __str__(self):
-        return type(self).get_name()
+    def get_owner(self):
+        return self._owner
 
 class LoveLetterInvalidCommand(Exception):
     """ You tried to do something a card has no business doing """
@@ -49,7 +52,7 @@ class SoldierCard(LoveLetterCard):
                 # you don't need a target if there are no targetable players.
                 return outcome_no_target(self, player)
             else:
-                raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable" % str(target))
+                raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable." % str(target))
 
         if type(target.get_hand_first_card()) == guess:
             return self.outcome_hit(player, target)
