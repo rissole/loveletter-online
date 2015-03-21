@@ -1,3 +1,8 @@
+ARG_TYPE_PLAYER = 0
+ARG_TYPE_CHOICE = 1
+PLAYER_FILTER_NOT_SELF = 1
+PLAYER_FILTER_NOT_DEAD = 2
+
 class LoveLetterCard(object):
     """ Abstract card object """
     default_amount = 0
@@ -25,6 +30,10 @@ class LoveLetterCard(object):
     def get_value():
         return 0
 
+    @staticmethod
+    def get_required_command_args():
+        return {}
+
     def get_owner(self):
         return self._owner
 
@@ -45,6 +54,24 @@ class SoldierCard(LoveLetterCard):
     @staticmethod
     def get_value():
         return 1
+
+    # oh BOY Blake this is gonna require some documentation or a complicated builder
+    # eventually the latter but let's just do json-like hackery for now
+    @staticmethod
+    def get_required_command_args():
+        return {
+            'target': {
+                'type': ARG_TYPE_PLAYER,
+                'filters': [
+                    PLAYER_FILTER_NOT_SELF,
+                    PLAYER_FILTER_NOT_DEAD
+                ]
+            },
+            'guess': {
+                'type': ARG_TYPE_CHOICE,
+                'filters': map(lambda c: c.get_name(), ALL_CHARACTERS)
+            }
+        }
 
     def command_action(self, player, target, guess):
         if not target.is_targetable():

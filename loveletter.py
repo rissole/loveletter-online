@@ -15,7 +15,7 @@ class LoveLetterGame(object):
         return self._current_turn
 
     def get_turn_player(self):
-        for i in xrange(len(self.players)):
+        for i in xrange(len(self._players)):
             player = self._players[(self._current_turn + i) % len(self._players)]
             if player.is_alive():
                 return player
@@ -48,6 +48,7 @@ class LoveLetterGame(object):
 
     def init_deck(self):
         self._deck = []
+        self._burn_pile = []
         for character, amount in self.config.num_cards_per_character.iteritems():
             for _ in xrange(amount):
                 self._deck.append(character())
@@ -74,14 +75,17 @@ class LoveLetterGame(object):
         if len(self._deck) == 0:
             raise LoveLetterGameException("%s tried to draw a card but the deck is empty." % str(player))
         card = self._deck.pop()
-        player.draw(card)
+        player.add_card_to_hand(card)
+        card.draw_action(player)
 
     def next_turn(self):
         self._current_turn += 1
         # no cards left? let's do the compare step
         if len(self._deck) == 0:
-            winner = max(p in self._players, key=lambda p: p.get_hand_first_card().get_value())
+            print "no more cards!"
+            winner = max(self._players, key=lambda p: p.get_hand_first_card().get_value())
             for p in self.get_live_players_excluding(winner):
+                print "%s loses!" % p.get_profile()
                 p.lose()
         # if priestess is up on next player, remove immunity now.. well this will be the aura system
 
@@ -124,9 +128,8 @@ class LoveLetterPlayer(object):
         if not no_action:
             card.discard_action(self)
 
-    def draw(self, card):
+    def add_card_to_hand(self, card):
         self._hand.append(card)
-        card.draw_action(self)
 
     def lose(self):
         for card in self._hand:
@@ -148,7 +151,7 @@ class LoveLetterPlayer(object):
 
     def is_targetable(self):
         # TODO and not has immune aura
-        return self._alive
+        return True
 
     def give_win_credit(self):
         self._won_rounds += 1
