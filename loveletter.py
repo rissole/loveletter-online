@@ -4,12 +4,13 @@ import lovelettercards
 
 class LoveLetterGame(object):
 
-    def __init__(self):
+    def __init__(self, notifier):
         self._deck = []
         self._burn_pile = []
         self._players = []
         self.config = LoveLetterGameConfig()
         self._current_turn = 0
+        self._notifier = notifier
 
     def get_current_turn(self):
         return self._current_turn
@@ -89,10 +90,13 @@ class LoveLetterGame(object):
     def do_compare_phase(self):
         """ At the end of a round, when no cards are left in the deck, the
             winner is the player with the highest card."""
-        winner = max(p in self._players, key=lambda p: p.get_hand_first_card().get_value())
-            for p in self.get_live_players_excluding(winner):
-                print "%s loses!" % p.get_profile()
-                p.lose()
+        winner = max(self._players, key=lambda p: p.get_hand_first_card().get_value())
+        for loser in self.get_live_players_excluding(winner):
+            print "%s loses!" % loser.get_profile()
+            loser.lose()
+
+    def get_notifier(self):
+        return self._notifier
 
 class LoveLetterGameException(Exception):
     pass

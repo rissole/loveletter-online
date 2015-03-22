@@ -1,5 +1,6 @@
 from loveletter import *
 from lovelettercards import *
+from notifiers import ConsoleNotifier
 
 def get_valid_number(validator):
     while True:
@@ -10,7 +11,7 @@ def get_valid_number(validator):
         break
     return option
 
-LLG = LoveLetterGame()
+LLG = LoveLetterGame(ConsoleNotifier())
 
 players = [
     LoveLetterPlayer('blake', LLG),
@@ -21,36 +22,36 @@ players = [
 for p in players:
     LLG.add_player(p)
 
-print "Welcome: " + ", ".join(str(p) for p in players)
+LLG.get_notifier().send(players, 'welcome', {'msg': 'welcome scrubs'})
 LLG.start_new_round()
 
 while True:
-    print "Deck is: ", [str(c) for c in LLG._deck]
-    print "Burn is: ", [str(c) for c in LLG._burn_pile]
+    LLG.get_notifier().send(players, 'deck', {'cards': [c.get_name() for c in LLG._deck]})
+    LLG.get_notifier().send(players, 'burn', {'cards': [c.get_name() for c in LLG._burn_pile]})
     turn_player = LLG.get_turn_player()
-    print "It is %s's turn" % str(turn_player)
+    LLG.get_notifier().send(players, 'turn', {'player': str(turn_player)})
     LLG.draw_card(turn_player)
     hand = turn_player.get_hand()
-    print "Your hand is:", hand
+    LLG.get_notifier().send([turn_player], 'hand', {'cards': [c.get_name() for c in hand]})
     option = get_valid_number(lambda opt: opt >= 0 and opt < len(hand))
     card = hand[option]
     args_required = card.get_required_command_args()
     returned_args = {}
     for arg_name, arg in args_required.iteritems():
         if arg['type'] == ARG_TYPE_PLAYER:
-            players = LLG.get_all_players()
+            choice_players = LLG.get_all_players()
             if PLAYER_FILTER_NOT_DEAD in arg['filters']:
-                players = filter(lambda p: p.is_alive(), players)
+                choice_players = filter(lambda p: p.is_alive(), choice_players)
             if PLAYER_FILTER_NOT_SELF in arg['filters']:
-                players = filter(lambda p: p != turn_player, players)
-            if len(players) == 0:
-                print "no choices lmao"
+                choice_players = filter(lambda p: p != turn_player, choice_players)
+            if len(choice_players) == 0:
+                LLG.get_notifier().send([turn_player], 'choice_none')
 
-            print "choose a player: ", players
-            player_option = get_valid_number(lambda opt: opt >=0 and opt < len(players))
-            returned_args[arg_name] = players[player_option]
+            LLG.get_notifier().send([turn_player], 'choice_prompt', {'options': [str(p) for p in choice_players]})
+            player_option = get_valid_number(lambda opt: opt >=0 and opt < len(choice_players))
+            returned_args[arg_name] = choice_players[player_option]
         elif arg['type'] == ARG_TYPE_CHOICE:
-            print "pick one: ", arg['filters']
+            LLG.get_notifier().send([turn_player], 'choice_prompt', {'options': arg['filters']})
             opt = get_valid_number(lambda opt: opt >= 0 and opt < len(arg['filters']))
             returned_args[arg_name] = arg['filters'][opt]
 
