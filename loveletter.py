@@ -80,11 +80,15 @@ class LoveLetterGame(object):
         self._current_turn += 1
         # no cards left? let's do the compare step
         if len(self._deck) == 0:
-            winner = max(p in self._players, key=lambda p: p.get_hand_first_card().get_value())
-            for p in self.get_live_players_excluding(winner):
-                p.lose()
+            self.do_compare_phase()
         # if priestess is up on next player, remove immunity now.. well this will be the aura system
 
+    def do_compare_phase(self):
+        """ At the end of a round, when no cards are left in the deck, the
+            winner is the player with the highest card."""
+        winner = max(p in self._players, key=lambda p: p.get_hand_first_card().get_value())
+            for p in self.get_live_players_excluding(winner):
+                p.lose()
 
 class LoveLetterGameException(Exception):
     pass
