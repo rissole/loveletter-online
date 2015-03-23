@@ -52,7 +52,7 @@ class LoveLetterGame(object):
         self._burn_pile = []
         for character, amount in self.config.num_cards_per_character.iteritems():
             for _ in xrange(amount):
-                self._deck.append(character())
+                self._deck.append(character(self))
         random.shuffle(self._deck)
 
     def burn_deck_card(self):
@@ -77,23 +77,26 @@ class LoveLetterGame(object):
             raise LoveLetterGameException("%s tried to draw a card but the deck is empty." % str(player))
         card = self._deck.pop()
         player.add_card_to_hand(card)
+        self.get_notifier().send(self.get_players_excluding(player), 'anon_card_draw', {'player': player})
+        self.get_notifier().send_to_player(player, 'card_draw', {'card': card})
         card.draw_action(player)
 
     def next_turn(self):
         self._current_turn += 1
         # no cards left? let's do the compare step
         if len(self._deck) == 0:
-            print "no more cards!"
+            self.get_notifier().send(self.get_all_players(), 'compare_phase_begin', {})
             self.do_compare_phase()
         # if priestess is up on next player, remove immunity now.. well this will be the aura system
 
     def do_compare_phase(self):
         """ At the end of a round, when no cards are left in the deck, the
             winner is the player with the highest card."""
-        winner = max(self._players, key=lambda p: p.get_hand_first_card().get_value())
+        winning_card = max((pl.get_hand_first_card() for pl in self.get_live_players()), key=lambda c: c.get_value())
+        winner = winning_card.get_owner()
         for loser in self.get_live_players_excluding(winner):
-            print "%s loses!" % loser.get_profile()
             loser.lose()
+        self.get_notifier().send(self.get_all_players(), 'compare_phase_end', {'winner': winner, 'card': winning_card})
 
     def get_notifier(self):
         return self._notifier
@@ -133,6 +136,7 @@ class LoveLetterPlayer(object):
             raise LoveLetterGameException("Tried to discard card %s, but player %s doesn't have it in hand." % (str(card), str(self)))
         self._played_cards.append(card)
         self._hand.remove(card)
+        self.get_notifier().send(self._game.get_all_players(), 'discard', {'player': self, 'card': card})
         if not no_action:
             card.discard_action(self)
 
@@ -140,6 +144,7 @@ class LoveLetterPlayer(object):
         self._hand.append(card)
 
     def lose(self):
+        self.get_notifier().send(self._game.get_all_players(), 'lose', {'player': self})
         for card in self._hand:
             self.discard(card, no_action=True)
         self._alive = False
@@ -149,6 +154,7 @@ class LoveLetterPlayer(object):
         if len(live_players) == 1:
             winner = live_players[0]
             winner.give_win_credit()
+            self.get_notifier().send(self._game.get_all_players(), 'win', {'player': winner})
             self._game.start_new_round()
 
     def get_profile(self):
@@ -156,6 +162,12 @@ class LoveLetterPlayer(object):
 
     def get_game(self):
         return self._game
+
+    def get_notifier(self):
+        if self._game:
+            return self._game.get_notifier()
+        else:
+            return None
 
     def is_targetable(self):
         # TODO and not has immune aura

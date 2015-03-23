@@ -7,9 +7,10 @@ class LoveLetterCard(object):
     """ Abstract card object """
     default_amount = 0
 
-    def __init__(self):
+    def __init__(self, game):
         # there are advantages to a LoveLetterPlayer.NO_PLAYER constant but I think this is fine.
         self._owner = None
+        self._game = game
 
     def draw_action(self, player):
         self._owner = player
@@ -37,6 +38,13 @@ class LoveLetterCard(object):
     def get_owner(self):
         return self._owner
 
+    def get_game(self):
+        return self._game
+
+    def get_notifier(self):
+        """ Convenience method """
+        return self._game.get_notifier()
+
 class LoveLetterInvalidCommand(Exception):
     """ You tried to do something a card has no business doing """
     pass
@@ -44,8 +52,8 @@ class LoveLetterInvalidCommand(Exception):
 class SoldierCard(LoveLetterCard):
     default_amount = 5
 
-    def __init__(self):
-        super(SoldierCard, self).__init__()
+    def __init__(self, game):
+        super(SoldierCard, self).__init__(game)
 
     @staticmethod
     def get_name():
@@ -77,26 +85,25 @@ class SoldierCard(LoveLetterCard):
         if not target.is_targetable():
             if all(not t.is_targetable() for t in player.get_game().get_players_excluding(player)):
                 # you don't need a target if there are no targetable players.
-                return outcome_no_target(self, player)
+                self.outcome_no_target(self, player)
+                return
             else:
                 raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable." % str(target))
 
         if type(target.get_hand_first_card()) == guess:
-            return self.outcome_hit(player, target)
+            self.outcome_hit(player, target, guess)
         else:
-            return self.outcome_whiff(player, target, guess)
+            self.outcome_whiff(player, target, guess)
 
-    def outcome_hit(self, player, target):
-        # broadcast packets
+    def outcome_hit(self, player, target, guess):
+        self.get_notifier().send(self._game.get_all_players(), 'soldier_hit', {'player': player, 'target': target, 'guess': guess})
         target.lose()
 
     def outcome_whiff(self, player, target, guess):
-        # broadcast packets
-        pass
+        self.get_notifier().send(self._game.get_all_players(), 'soldier_whiff', {'player': player, 'target': target, 'guess': guess})
 
     def outcome_no_target(self, player):
-        # broadcast packets
-        pass
+        self.get_notifier().send(self._game.get_all_players(), 'soldier_no_target', {'player': player})
 
 ALL_CHARACTERS = [
     SoldierCard
