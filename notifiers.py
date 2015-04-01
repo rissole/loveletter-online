@@ -5,3 +5,11 @@ class ConsoleNotifier(object):
 
     def send(self, players, opcode, msg_args):
         print ', '.join(str(p) for p in players), ":", opcode, str(msg_args)
+
+class DevNullNotifier(object):
+
+    def send_to_player(self, player, opcode, msg_args):
+        pass
+
+    def send(self, players, opcode, msg_args):
+        pass

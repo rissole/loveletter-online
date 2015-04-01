@@ -11,16 +11,17 @@ class LoveLetterGame(object):
         self.config = LoveLetterGameConfig()
         self._current_turn = 0
         self._notifier = notifier
+        self._current_round = 0
+        self._current_turn_player = None
 
     def get_current_turn(self):
         return self._current_turn
 
     def get_turn_player(self):
-        for i in xrange(len(self._players)):
-            player = self._players[(self._current_turn + i) % len(self._players)]
-            if player.is_alive():
-                return player
-        raise LoveLetterGameException("Unable to get current turn player, all players dead.")
+        if self.get_live_players():
+            return self._current_turn_player
+        else:
+            raise LoveLetterGameException("Unable to get current turn player, all players dead.")
 
     def get_all_players(self):
         return self._players
@@ -34,11 +35,13 @@ class LoveLetterGame(object):
     def get_live_players_excluding(self, *exclude):
         return filter(lambda p: p.is_alive() and p not in exclude, self._players)
 
-    def start_new_round(self):
+    def start_new_round(self, starting_player=None):
+        self._current_round += 1
         players = self._players
         if len(players) < self.config.min_players or len(players) > self.config.max_players:
             raise LoveLetterGameException("Expected more than %s and less than %s players, got %s." % (self.config.min_players, self.config.max_players, len(players)))
         self._current_turn = 0
+        self._current_turn_player = starting_player if starting_player else self._players[0]
 
         self.init_deck()
         self.burn_deck_card()
@@ -46,6 +49,9 @@ class LoveLetterGame(object):
         for p in players:
             p.reset()
             self.draw_card(p)
+
+        self.get_notifier().send(self.get_all_players(), 'round_begin', {'number': self._current_round})
+        return self._current_round
 
     def init_deck(self):
         self._deck = []
@@ -68,8 +74,8 @@ class LoveLetterGame(object):
     def play_card(self, player, card, **command_args):
         if card.get_owner() != player:
             raise LoveLetterGameException("Cannot play card %s: Player %s doesn't own card." % (card, player))
-        card.command_action(player, **command_args)
         player.discard(card)
+        card.command_action(player, **command_args)
         self.next_turn()
 
     def draw_card(self, player):
@@ -81,22 +87,44 @@ class LoveLetterGame(object):
         self.get_notifier().send_to_player(player, 'card_draw', {'card': card})
         card.draw_action(player)
 
+    def _increment_turn_player(self):
+        current_player_index = self._players.index(self._current_turn_player)
+        while True:
+            current_player_index = (current_player_index + 1) % len(self._players)
+            if self._players[current_player_index].is_alive():
+                self._current_turn_player = self._players[current_player_index]
+                break
+
     def next_turn(self):
-        self._current_turn += 1
+        # check if all but one dead, and end round if so
+        live_players = self.get_live_players()
+        if len(live_players) == 1:
+            winner = live_players[0]
+            winner.give_win_credit()
+            self.get_notifier().send(self.get_all_players(), 'win', {'player': winner})
+            return self.start_new_round()
+
         # no cards left? let's do the compare step
-        if len(self._deck) == 0:
+        elif len(self._deck) == 0:
             self.get_notifier().send(self.get_all_players(), 'compare_phase_begin', {})
             self.do_compare_phase()
-        # if priestess is up on next player, remove immunity now.. well this will be the aura system
+            return self.start_new_round()
+
+        self._current_turn += 1
+        self._increment_turn_player()
+        # aura system next turn...
+        return False
 
     def do_compare_phase(self):
         """ At the end of a round, when no cards are left in the deck, the
             winner is the player with the highest card."""
         winning_card = max((pl.get_hand_first_card() for pl in self.get_live_players()), key=lambda c: c.get_value())
-        winner = winning_card.get_owner()
-        for loser in self.get_live_players_excluding(winner):
+        winners = filter(lambda pl: pl.get_hand_first_card().get_value() == winning_card.get_value(), self.get_live_players())
+        for loser in self.get_live_players_excluding(winners):
             loser.lose()
-        self.get_notifier().send(self.get_all_players(), 'compare_phase_end', {'winner': winner, 'card': winning_card})
+        for winner in winners:
+            winner.give_win_credit()
+        self.get_notifier().send(self.get_all_players(), 'compare_phase_end', {'winners': winners, 'value': winning_card.get_value()})
 
     def get_notifier(self):
         return self._notifier
@@ -149,14 +177,6 @@ class LoveLetterPlayer(object):
             self.discard(card, no_action=True)
         self._alive = False
 
-        # check if all but one dead, and end round if so
-        live_players = self.get_game().get_live_players()
-        if len(live_players) == 1:
-            winner = live_players[0]
-            winner.give_win_credit()
-            self.get_notifier().send(self._game.get_all_players(), 'win', {'player': winner})
-            self._game.start_new_round()
-
     def get_profile(self):
         return self._profile
 
@@ -181,6 +201,9 @@ class LoveLetterPlayer(object):
 
     def __str__(self):
         return self._profile
+
+    def __repr__(self):
+        return str(self)
 
 class LoveLetterGameConfig(object):
 

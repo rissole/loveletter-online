@@ -45,6 +45,9 @@ class LoveLetterCard(object):
         """ Convenience method """
         return self._game.get_notifier()
 
+    def __repr__(self):
+        return self.get_name()
+
 class LoveLetterInvalidCommand(Exception):
     """ You tried to do something a card has no business doing """
     pass
@@ -77,7 +80,7 @@ class SoldierCard(LoveLetterCard):
             },
             'guess': {
                 'type': ARG_TYPE_CHOICE,
-                'filters': map(lambda c: c.get_name(), ALL_CHARACTERS)
+                'filters': map(lambda c: c.get_name(), filter(lambda c: c != SoldierCard, ALL_CHARACTERS))
             }
         }
 
@@ -90,7 +93,7 @@ class SoldierCard(LoveLetterCard):
             else:
                 raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable." % str(target))
 
-        if type(target.get_hand_first_card()) == guess:
+        if target.get_hand_first_card().get_name() == guess:
             self.outcome_hit(player, target, guess)
         else:
             self.outcome_whiff(player, target, guess)
@@ -105,8 +108,107 @@ class SoldierCard(LoveLetterCard):
     def outcome_no_target(self, player):
         self.get_notifier().send(self._game.get_all_players(), 'soldier_no_target', {'player': player})
 
+class ClownCard(LoveLetterCard):
+    default_amount = 3
+
+    def __init__(self, game):
+        super(ClownCard, self).__init__(game)
+
+    @staticmethod
+    def get_name():
+        return "Clown"
+
+    @staticmethod
+    def get_value():
+        return 2
+
+    @staticmethod
+    def get_required_command_args():
+        return {
+            'target': {
+                'type': ARG_TYPE_PLAYER,
+                'filters': [
+                    PLAYER_FILTER_NOT_SELF,
+                    PLAYER_FILTER_NOT_DEAD
+                ]
+            }
+        }
+
+    def command_action(self, player, target):
+        if not target.is_targetable():
+            if all(not t.is_targetable() for t in player.get_game().get_players_excluding(player)):
+                # you don't need a target if there are no targetable players.
+                self.outcome_no_target(self, player)
+                return
+            else:
+                raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable." % str(target))
+
+        self.outcome_hit(player, target)
+
+    def outcome_hit(self, player, target):
+        self.get_notifier().send(self._game.get_all_players(), 'clown_hit', {'player': player, 'target': target})
+        self.get_notifier().send_to_player(player, 'clown_reveal', {'target': target, 'hand': target.get_hand_first_card()})
+
+    def outcome_no_target(self, player):
+        self.get_notifier().send(self._game.get_all_players(), 'clown_no_target', {'player': player})
+
+
+class KnightCard(LoveLetterCard):
+    default_amount = 3
+
+    def __init__(self, game):
+        super(KnightCard, self).__init__(game)
+
+    @staticmethod
+    def get_name():
+        return "Knight"
+
+    @staticmethod
+    def get_value():
+        return 3
+
+    @staticmethod
+    def get_required_command_args():
+        return {
+            'target': {
+                'type': ARG_TYPE_PLAYER,
+                'filters': [
+                    PLAYER_FILTER_NOT_SELF,
+                    PLAYER_FILTER_NOT_DEAD
+                ]
+            }
+        }
+
+    def command_action(self, player, target):
+        if not target.is_targetable():
+            if all(not t.is_targetable() for t in player.get_game().get_players_excluding(player)):
+                # you don't need a target if there are no targetable players.
+                self.outcome_no_target(self, player)
+                return
+            else:
+                raise LoveLetterInvalidCommand("Invalid target '%s': target is not targetable." % str(target))
+
+        self.outcome_hit(player, target)
+
+    def outcome_hit(self, player, target):
+        self.get_notifier().send(self._game.get_all_players(), 'knight_hit', {'player': player, 'target': target})
+        player_value = player.get_hand_first_card().get_value()
+        target_value = target.get_hand_first_card().get_value()
+        if player_value > target_value:
+            target.lose()
+        elif target_value > player_value:
+            player.lose()
+        else:
+            self.get_notifier().send(self._game.get_all_players(), 'knight_equal', {'player': player, 'target': target})
+
+
+    def outcome_no_target(self, player):
+        self.get_notifier().send(self._game.get_all_players(), 'knight_no_target', {'player': player})
+
 ALL_CHARACTERS = [
-    SoldierCard
+    SoldierCard,
+    ClownCard,
+    KnightCard
 ]
 
 def get_all_characters():
