@@ -1,0 +1,17 @@
+<html>
+<head>
+	<title>Memes</title>
+</head>
+<body>
+<script>
+	var command = new WebSocket('ws://localhost:8000/command');
+	setTimeout(function() {
+		command.send(JSON.stringify({
+			'opcode': 'join_room',
+			'room': '123',
+			'name': 'blake'
+		}));
+	}, 100);
+</script>
+</body>
+</html>
