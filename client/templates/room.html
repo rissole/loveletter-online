@@ -1,0 +1,25 @@
+<html>
+<head>
+	<title>Waiting room</title>
+	<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/spin.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/jquery.spin.js') }}"></script>
+</head>
+<body>
+	<h1>Your room name is: room_name </h1>
+
+	<h3>People in this room:</h3>
+	<ul id="players">
+		<li> my_name </li>
+	</ul>
+
+	<script>
+		var roomSocket = new WebSocket('ws://localhost:8000/waiting/test');
+		roomSocket.onopen = function(ws) {
+			roomSocket.send(JSON.stringify({
+				name: 'aa'
+			}));
+		}
+	</script>
+</body>
+</html>

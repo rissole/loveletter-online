@@ -9,6 +9,8 @@ def log_request(self):
             log.write(self.format_request() + '\n')
 
 
+from werkzeug.routing import Map, Rule
+from werkzeug.exceptions import HTTPException
 # Monkeys are made for freedom.
 try:
     import gevent
@@ -31,21 +33,22 @@ class SocketMiddleware(object):
 
     def __call__(self, environ, start_response):
         path = environ['PATH_INFO']
+        urls = self.ws.url_map.bind_to_environ(environ)
 
-        if path in self.ws.url_map:
-            handler = self.ws.url_map[path]
+        try:
+            endpoint, arguments = urls.match(path)
+            handler = self.ws.mapped_functions[endpoint]
             environment = environ['wsgi.websocket']
-
-            handler(environment)
-            return []
-        else:
+            handler(environment, **arguments)
+        except HTTPException:
             return self.app(environ, start_response)
 
 
 class Sockets(object):
 
     def __init__(self, app=None):
-        self.url_map = {}
+        self.url_map = Map()
+        self.mapped_functions = {}
         if app:
             self.init_app(app)
 
@@ -55,13 +58,23 @@ class Sockets(object):
     def route(self, rule, **options):
 
         def decorator(f):
-            endpoint = options.pop('endpoint', None)
+            endpoint = options.pop('endpoint', f.__name__)
             self.add_url_rule(rule, endpoint, f, **options)
             return f
         return decorator
 
-    def add_url_rule(self, rule, _, f, **options):
-        self.url_map[rule] = f
+    def add_url_rule(self, rule, endpoint, f, **options):
+        self.url_map.add(Rule(
+            rule,
+            endpoint=endpoint,
+            **options
+        ))
+        if f is not None:
+            old_func = self.mapped_functions.get(endpoint)
+            if old_func is not None and old_func != view_func:
+                raise AssertionError('View function mapping is overwriting an '
+                                     'existing endpoint function: %s' % endpoint)
+            self.mapped_functions[endpoint] = f
 
 # CLI sugar.
 if 'Worker' in locals():

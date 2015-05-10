@@ -1,0 +1,21 @@
+<html>
+<head>
+	<title>LoveLetter Online</title>
+	<script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/spin.min.js') }}"></script>
+	<script src="{{ url_for('static', filename='js/jquery.spin.js') }}"></script>
+</head>
+<body>
+	<form>
+		<label for="username">What's your name?</label>
+		<input id="username" placeholder="Your name"/>
+		<hr/>
+		<label for="room">Want to join a friend's room?</label>
+		<input id="room" placeholder="Room name"/>
+		<button type="button" id="join-room">Join room</button>
+		<hr/>
+		<label>Want to create a new room?</label>
+		<button type="button" id="create-room">Create room</button>
+	</form>
+</body>
+</html>
