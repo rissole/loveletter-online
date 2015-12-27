@@ -134,10 +134,10 @@ class LoveLetterGameException(Exception):
 
 class LoveLetterPlayer(object):
 
-    def __init__(self, profile, game):
+    def __init__(self, name, game):
         self.reset()
-        # profile is some unique identifier for this player
-        self._profile = profile
+        # name is some unique identifier for this player
+        self._name = name
         self._game = game
         self._won_rounds = 0
 
@@ -177,8 +177,8 @@ class LoveLetterPlayer(object):
             self.discard(card, no_action=True)
         self._alive = False
 
-    def get_profile(self):
-        return self._profile
+    def get_name(self):
+        return self._name
 
     def get_game(self):
         return self._game
@@ -200,7 +200,7 @@ class LoveLetterPlayer(object):
         return self._won_rounds
 
     def __str__(self):
-        return self._profile
+        return self._name
 
     def __repr__(self):
         return str(self)
