@@ -24,28 +24,50 @@ def index():
 @app.route('/create', methods=['POST'])
 def create():
     name = 'memes'
+    if name in ROOMS:
+        return
     ROOMS[name] = Room(name, socketio)
-    return flask.jsonify(**{
-        'result': 'success',
-        'roomName': 'memes'
-    })
+    return flask.jsonify(
+        result='success',
+        room_name=name
+    )
 
-@app.route('/room/<name>', methods=['GET'])
-def room(name):
-    return flask.render_template('room.html', **{
-        'room_name': name,
-        'my_name': flask.request.args.get('username', 'poopy mc. blankbox')
-    })
+@app.route('/room/<room_name>', methods=['GET'])
+def room(room_name):
+    create() # if it doesnt already exist
+    if room_name not in ROOMS:
+        return flask.render_template('error.html', error={
+                'title': 'That room doesn\'t exist.',
+                'message': 'I really have no idea what room you\'re looking for, mate. Go home and try again.'
+            })
+
+    names_already_in_room = [p.get_name() for p in ROOMS[room_name].get_game().get_all_players()]
+
+    return flask.render_template(
+        'room.html',
+        room_name=room_name,
+        my_name=flask.request.args.get('username'),
+        names_already_in_room=names_already_in_room
+    )
 
 # triggered when someone begins to wait in a room
 @socketio.on('join')
 def join(data):
-    create()
-    print 'room joined!'
     room_name = data['room_name']
     player_name = data['my_name']
     flask_socketio.join_room(room_name)
     create_room_player(flask.request.sid, player_name, room_name)
+
+@socketio.on('disconnect')
+def on_disconnect():
+    room = next(ROOMS[room_name] for room_name in flask_socketio.rooms() if room_name in ROOMS)
+    player_name = room.get_name_for_socket_id(flask.request.sid)
+
+    room.send_to_all('player_left', {
+        'player_name': player_name
+    })
+
+    print 'room',room.get_name(),'lost player',(player_name, flask.request.sid)
 
 def create_room_player(socket_id, player_name, room_name):
     room = ROOMS[room_name]
@@ -85,6 +107,9 @@ class Room(object):
 
     def get_socket_id_for_player(self, player):
         return self._player_sockets[player.get_name()]
+
+    def get_name_for_socket_id(self, socket_id):
+        return next(name for name, sid in self._player_sockets.iteritems() if socket_id == sid)
 
     def get_game(self):
         return self._game

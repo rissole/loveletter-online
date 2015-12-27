@@ -27,7 +27,7 @@
             $.post('/create')
             .done(function(response){
                 if (response.result === "success") {
-                    joinRoom(response.roomName);
+                    joinRoom(response.room_name);
                 }
             });
         }); 

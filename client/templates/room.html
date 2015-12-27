@@ -11,14 +11,20 @@
 
     <h3>People in this room:</h3>
     <ul id="players">
+        {% for name in names_already_in_room %}
+            <li name={{ name }}>{{ name }}</li>
+        {% endfor %}
     </ul>
 
     <script>
         var socket = io();
         socket.emit('join', {room_name: '{{ room_name }}', my_name: '{{ my_name }}'});
         socket.on('player_joined', function(data){
-            $('#players').append($('<li>').text(data.player_name));
-          });
+            $('#players').append($('<li>').text(data.player_name).attr('name', data.player_name));
+        });
+        socket.on('player_left', function(data){
+            $('#players > li[name="'+data.player_name+'"]').remove();
+        });
     </script>
 </body>
 </html>
