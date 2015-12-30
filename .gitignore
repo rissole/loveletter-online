@@ -2,3 +2,5 @@ venv
 *~
 *.pyc
 app_secret
+client/node_modules
+client/public/js/llo-app.js

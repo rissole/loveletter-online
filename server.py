@@ -5,7 +5,7 @@ import loveletter
 
 app = flask.Flask(
     __name__,
-    static_folder="client/static",
+    static_folder="client/public",
     template_folder="client/templates"
 )
 app.debug = True
@@ -24,9 +24,8 @@ def index():
 @app.route('/create', methods=['POST'])
 def create():
     name = 'memes'
-    if name in ROOMS:
-        return
-    ROOMS[name] = Room(name, socketio)
+    if name not in ROOMS:
+        ROOMS[name] = Room(name, socketio)
     return flask.jsonify(
         result='success',
         room_name=name
@@ -48,6 +47,21 @@ def room(room_name):
         room_name=room_name,
         my_name=flask.request.args.get('username'),
         names_already_in_room=names_already_in_room
+    )
+
+@app.route('/room/<room_name>/config', methods=['GET'])
+def get_config_for_room(room_name):
+    if room_name not in ROOMS:
+        return flask.jsonify(
+            result='error',
+            message='Room doesn\'t exist'
+        )
+    config = ROOM[room_name].get_game().config
+    return flask.jsonify(
+        minPlayers=config.min_players,
+        maxPlayers=config.max_players,
+        numCardsPerCharacter=config.num_cards_per_character,
+        roundsToWin=config.rounds_to_win
     )
 
 # triggered when someone begins to wait in a room

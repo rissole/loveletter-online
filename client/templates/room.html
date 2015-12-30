@@ -1,12 +1,14 @@
+<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8" />
     <title>Waiting room</title>
-    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/spin.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/jquery.spin.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bundle.js') }}"></script>
 </head>
 <body>
+    <div id="room">
+    </div>
+    
     <h1>Your room name is: {{ room_name }}</h1>
 
     <h3>People in this room:</h3>
