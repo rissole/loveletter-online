@@ -64,6 +64,18 @@ def get_config_for_room(room_name):
         roundsToWin=config.rounds_to_win
     )
 
+@app.route('/room/<room_name>/members', methods=['GET'])
+def get_room_members(room_name):
+    if room_name not in ROOMS:
+        return flask.jsonify(
+            result='error',
+            message='Room doesn\'t exist'
+        )
+    return flask.jsonify(
+        result='success',
+        members=[p.get_name() for p in ROOMS[room_name].get_game().get_all_players()]
+    )
+
 # triggered when someone begins to wait in a room
 @socketio.on('join')
 def join(data):
