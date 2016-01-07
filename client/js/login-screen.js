@@ -6,7 +6,8 @@ module.exports = React.createClass({
     getInitialState: function() {
         return {
             'username': '',
-            'roomName': ''
+            'roomName': '',
+            'errors': {}
         };
     },
 
@@ -22,19 +23,78 @@ module.exports = React.createClass({
         this.props.onLogin(this.state.username, roomName);
     },
 
+    validateRoomName: function() {
+        let length = this.state.roomName.length
+        if (length === 0) {
+            return {
+                'roomName': 'Enter a room name, dingus'
+            };
+        } else if (length > 32) {
+            return {
+                'roomName': 'That room name is a bit too long mate'
+            };
+        }
+        return {};
+    },
+
+    validateUsername: function() {
+        let length = this.state.username.length
+        if (length === 0) {
+            return {
+                'username': 'Enter a username, dingus'
+            };
+        } else if (length > 32) {
+            return {
+                'username': 'That username is a bit too long mate'
+            };
+        }
+        return {};
+    },
+
+    validateServerside: function(callback) {
+        $.ajax(`/validateLogin?username=${this.state.username}&roomName=${this.state.roomName}`)
+        .done((result) => {
+            callback(result.errors);
+        });
+    },
+
     handleJoinRoomSubmit: function(e) {
         e.preventDefault();
-        this.joinRoom(this.state.roomName);
+
+        let errors = Object.assign(this.validateUsername(), this.validateRoomName());
+        if (Object.keys(errors).length) {
+            return this.setState({
+                'errors': errors
+            });
+        }
+
+        this.validateServerside((errors) => {
+            if (Object.keys(errors).length) {
+                return this.setState({
+                    'errors': errors
+                });
+            } else {
+                this.joinRoom(this.state.roomName);
+            }
+        })
     },
 
     handleCreateRoomSubmit: function(e) {
         e.preventDefault();
-        $.post('/create')
-        .done((response) => {
-            if (response.result === "success") {
-                this.joinRoom(response.room_name);
-            }
-        });
+        
+        let errors = this.validateUsername();
+        if (Object.keys(errors).length) {
+            this.setState({
+                'errors': errors
+            });
+        } else {
+            $.post('/create')
+            .done((response) => {
+                if (response.result === "success") {
+                    this.joinRoom(response.room_name);
+                }
+            });
+        }
     },
 
     render: function() {
@@ -49,6 +109,7 @@ module.exports = React.createClass({
                         value={this.state.username}
                         onChange={this.handleUsernameChange}
                     />
+                    <span style={{color: 'red'}}>{this.state.errors.username}</span>
                     <hr/>
                     <label htmlFor="llLoginScreenRoom">Want to join a friend's room?</label>
                     <input
@@ -65,6 +126,7 @@ module.exports = React.createClass({
                     >
                         Join room
                     </button>
+                    <span style={{color: 'red'}}>{this.state.errors.roomName}</span>
                     <hr/>
                     <label>Want to create a new room?</label>
                     <button 

@@ -35,6 +35,9 @@ class LoveLetterGame(object):
     def get_live_players_excluding(self, *exclude):
         return filter(lambda p: p.is_alive() and p not in exclude, self._players)
 
+    def get_config(self):
+        return self.config
+
     def start_new_round(self, starting_player=None):
         self._current_round += 1
         players = self._players
@@ -70,6 +73,12 @@ class LoveLetterGame(object):
             raise LoveLetterGameException("Cannot add more players to game: already have %s players." % (self.config.max_players))
 
         self._players.append(player)
+
+    def get_player(self, player_name):
+        return next(p for p in self._players if p.get_name() == player_name)
+
+    def remove_player(self, player):
+        self._players.remove(player)
 
     def play_card(self, player, card, **command_args):
         if card.get_owner() != player:

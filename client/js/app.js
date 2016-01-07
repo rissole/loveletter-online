@@ -6,8 +6,8 @@ var WaitingRoomScreen = require('./waiting-room-screen');
 let LoveLetterApp = React.createClass({
     getInitialState: function() {
         return {
-            user: '',
-            roomName: '',
+            user: null,
+            room: null,
             roomReady: false
         };
     },
@@ -26,16 +26,16 @@ let LoveLetterApp = React.createClass({
     render: function() {
         let screen;
 
-        if (this.state.user === '' || this.state.roomName === '') {
+        if (this.state.user === null || this.state.roomName === null) {
             screen = <LoginScreen onLogin={this.handleLogin} />;
-        } else if (this.state.user !== '' && this.state.roomName !== '' && this.state.roomReady !== true) {
+        } else if (this.state.user !== null && this.state.roomName !== null && this.state.roomReady !== true) {
             screen = <WaitingRoomScreen 
                         username={this.state.user}
                         roomName={this.state.roomName}
                         onRoomReady={this.handleRoomReady} />;
         }
         else if (this.state.roomReady === true) {
-            screen = <h1>YOU ARE IN THE READY ROOM</h1>
+            screen = <h1>YOU ARE READY TO PLAY THE GAME</h1>
         }
 
         return (

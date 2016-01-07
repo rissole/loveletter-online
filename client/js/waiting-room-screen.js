@@ -5,7 +5,8 @@ var $ = require('jquery');
 module.exports = React.createClass({
     getInitialState: function() {
         return {
-            remoteRoomMembers: []
+            roomMembers: [],
+            secondsRemaining: 0
         };
     },
 
@@ -14,7 +15,7 @@ module.exports = React.createClass({
         .done((data) => {
             if (data.result === 'success') {
                 this.setState({
-                    remoteRoomMembers: data.members
+                    roomMembers: data.members
                 });
             }
         });
@@ -24,26 +25,49 @@ module.exports = React.createClass({
         this.loadRoomMembersFromServer();
 
         // set up a socket to listen to people joining/leaving the room
-        let socket = io();
-        socket.emit('join', {room_name: this.props.roomName, my_name: this.props.username});
-        socket.on('player_joined', (data) => {
+        this.socket = io();
+        this.socket.emit('join', {room_name: this.props.roomName, my_name: this.props.username});
+        this.socket.on('player_joined', (data) => {
             this.handlePlayerJoined(data.player_name);
         });
-        socket.on('player_left', (data) => {
+        this.socket.on('player_left', (data) => {
             this.handlePlayerLeft(data.player_name);
         });
     },
 
+    componentWillUnmount: function() {
+        clearInterval(this.interval);
+    },
+
     handlePlayerJoined: function(memberName) {
         this.setState({
-            remoteRoomMembers: this.state.remoteRoomMembers.concat([memberName])
+            roomMembers: this.state.roomMembers.concat([memberName]),
         });
     },
 
     handlePlayerLeft: function(memberName) {
         this.setState({
-            remoteRoomMembers: this.state.remoteRoomMembers.filter((existingMember) => existingMember != memberName)
+            roomMembers: this.state.roomMembers.filter((existingMember) => existingMember != memberName)
         });
+    },
+
+    setCountdown: function(seconds) {
+        this.setState({
+            secondsRemaining: seconds
+        });
+        this.interval = setInterval(this.tick, 1000);
+    },
+
+    tick: function() {
+        this.setState({secondsRemaining: this.state.secondsRemaining - 1});
+        if (this.state.secondsRemaining <= 0) {
+          clearInterval(this.interval);
+          this.handleCountdownComplete();
+        }
+    },
+
+    handleCountdownComplete: function() {
+        this.props.onRoomReady();
     },
 
     render: function() {
@@ -51,7 +75,8 @@ module.exports = React.createClass({
             <div>
                 <h1>Your room name is: {this.props.roomName}</h1>
                 <h2>People in this room:</h2>
-                <MemberList localPlayer={this.props.username} remoteRoomMembers={this.state.remoteRoomMembers} />
+                <MemberList roomMembers={this.state.roomMembers} />
+                <Countdown secondsRemaining={this.state.secondsRemaining} />
             </div>
         );
     }
@@ -59,7 +84,7 @@ module.exports = React.createClass({
 
 let MemberList = React.createClass({
     render: function() {
-        let memberNodes = this.props.remoteRoomMembers.map((member) => {
+        let memberNodes = this.props.roomMembers.map((member) => {
             return (
                 <Member key={member} name={member} />
             );
@@ -73,3 +98,11 @@ let MemberList = React.createClass({
 });
 
 let Member = (props) => <li>{props.name}</li>;
+
+let Countdown = (props) => 
+    <h1 
+    style={{
+        display: props.secondsRemaining > 0 ? "block" : "none"
+    }}>
+        {props.secondsRemaining}
+    </h1>

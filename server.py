@@ -17,6 +17,13 @@ socketio = flask_socketio.SocketIO(app)
 # room name -> room map
 ROOMS = {}
 
+def json_error(message):
+    print('error', message)
+    return flask.jsonify(
+        result='error',
+        message=message
+    )
+
 @app.route('/')
 def index():
     return flask.render_template('index.html')
@@ -31,31 +38,11 @@ def create():
         room_name=name
     )
 
-@app.route('/room/<room_name>', methods=['GET'])
-def room(room_name):
-    create() # if it doesnt already exist
-    if room_name not in ROOMS:
-        return flask.render_template('error.html', error={
-                'title': 'That room doesn\'t exist.',
-                'message': 'I really have no idea what room you\'re looking for, mate. Go home and try again.'
-            })
-
-    names_already_in_room = [p.get_name() for p in ROOMS[room_name].get_game().get_all_players()]
-
-    return flask.render_template(
-        'room.html',
-        room_name=room_name,
-        my_name=flask.request.args.get('username'),
-        names_already_in_room=names_already_in_room
-    )
-
 @app.route('/room/<room_name>/config', methods=['GET'])
 def get_config_for_room(room_name):
     if room_name not in ROOMS:
-        return flask.jsonify(
-            result='error',
-            message='Room doesn\'t exist'
-        )
+        return json_error('Room doesn\'t exist'), 404
+
     config = ROOM[room_name].get_game().config
     return flask.jsonify(
         minPlayers=config.min_players,
@@ -67,27 +54,51 @@ def get_config_for_room(room_name):
 @app.route('/room/<room_name>/members', methods=['GET'])
 def get_room_members(room_name):
     if room_name not in ROOMS:
-        return flask.jsonify(
-            result='error',
-            message='Room doesn\'t exist'
-        )
+        return json_error('Room doesn\'t exist'), 404
     return flask.jsonify(
         result='success',
         members=[p.get_name() for p in ROOMS[room_name].get_game().get_all_players()]
     )
+
+@app.route('/validateLogin', methods=['GET'])
+def validateLogin():
+    username = flask.request.args.get('username', '')
+    room_name = flask.request.args.get('roomName', '')
+    errors = {}
+
+    if username == '' or room_name == '':
+        errors['username'] = errors['roomName'] = 'You gotta send me username and roomName, kay?'
+    elif room_name not in ROOMS:
+        errors['roomName'] = 'That room doesn\'t exist, you probably made a typo, haha.'
+    elif not ROOMS[room_name].is_full():
+        errors['roomName'] = 'That room is full, gotta be quick!'
+    elif username in ROOMS[room_name].get_member_names():
+        errors['username'] = 'A user with that name is already in that room... be original!'
+
+    return flask.jsonify({
+        'errors': errors
+    })
 
 # triggered when someone begins to wait in a room
 @socketio.on('join')
 def join(data):
     room_name = data['room_name']
     player_name = data['my_name']
+
+    if room_name not in ROOMS:
+        return json_error('Room doesn\'t exist'), 404
+
     flask_socketio.join_room(room_name)
     create_room_player(flask.request.sid, player_name, room_name)
 
 @socketio.on('disconnect')
-def on_disconnect():
-    room = next(ROOMS[room_name] for room_name in flask_socketio.rooms() if room_name in ROOMS)
+def on_disconnect(): 
+    matching_rooms = [ROOMS[room_name] for room_name in flask_socketio.rooms() if room_name in ROOMS]
+    if len(matching_rooms) == 0:
+        return json_error('Room doesn\'t exist'), 404
+    room = matching_rooms[0]
     player_name = room.get_name_for_socket_id(flask.request.sid)
+    room.remove_member(player_name)
 
     room.send_to_all('player_left', {
         'player_name': player_name
@@ -128,6 +139,13 @@ class Room(object):
         self._player_sockets[love_letter_player.get_name()] = socket_id
         self._game.add_player(love_letter_player)
 
+    def remove_member(self, player_name):
+        del self._player_sockets[player_name]
+        self._game.remove_player(self._game.get_player(player_name))
+
+    def get_member_names(self):
+        return self._player_sockets.keys()
+
     def get_num_sockets(self):
         return len(self._player_sockets)
 
@@ -139,6 +157,9 @@ class Room(object):
 
     def get_game(self):
         return self._game
+
+    def is_full(self):
+        return len(self._game.get_all_players()) >= self._game.get_config().max_players
 
     # notifier part
 
