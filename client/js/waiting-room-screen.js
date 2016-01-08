@@ -27,16 +27,18 @@ module.exports = React.createClass({
         // set up a socket to listen to people joining/leaving the room
         this.socket = io();
         this.socket.emit('join', {room_name: this.props.roomName, my_name: this.props.username});
-        this.socket.on('player_joined', (data) => {
+        this.socket.on('player_joined', this.playerJoinedSocketCallback = (data) => {
             this.handlePlayerJoined(data.player_name);
         });
-        this.socket.on('player_left', (data) => {
+        this.socket.on('player_left', this.playerLeftSocketCallback = (data) => {
             this.handlePlayerLeft(data.player_name);
         });
     },
 
     componentWillUnmount: function() {
         clearInterval(this.interval);
+        this.socket.off('player_joined', this.playerJoinedSocketCallback);
+        this.socket.off('player_left', this.playerLeftSocketCallback);
     },
 
     handlePlayerJoined: function(memberName) {
